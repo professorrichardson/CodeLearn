@@ -2,30 +2,42 @@
 
 Trilha introdutória de C para o primeiro ano técnico. A trilha tem oito missões jogáveis, divididas em onze etapas. Cada etapa vale 100 XP. Cada dica nova reduz em 10 XP a recompensa da etapa. Uma previsão correta no desafio rende 10 XP extras na conclusão. O nome exibido, os rascunhos e o progresso ficam no navegador. O ranking compartilhado usa um identificador aleatório, sem conta ou senha. O botão **Sair** encerra a partida no navegador. A próxima partida começa com outro nome, na primeira etapa, e as pontuações já registradas permanecem no ranking.
 
-## Rodar no Mac
+## Rodar no Mac ou no laboratório
 
-Com Python 3 e Clang instalados, execute a partir da raiz do projeto:
+Baixe ou clone o repositório em cada computador. Com Python 3 e um compilador C disponíveis, abra o terminal na raiz do projeto.
+
+No Mac:
 
 ```sh
-python3 -B piloto/servidor.py
+python3 -B piloto/servidor.py --compilador clang
 ```
 
-Abra [CodLearn local](http://127.0.0.1:8765/). O piloto local executa C com as permissões do usuário. Use apenas código próprio e confiável. O ranking local fica em `piloto/ranking.sqlite3`, criado automaticamente. O banco guarda a maior pontuação por identificador e lista os 20 melhores resultados.
+No Linux, para executar o C em cada computador e compartilhar o ranking:
+
+```sh
+python3 -B piloto/servidor.py --compilador gcc --ranking-url https://SEU-PROJETO.vercel.app
+```
+
+Troque a URL pelo endereço público da Vercel. Deixe o terminal aberto e acesse [CodLearn local](http://127.0.0.1:8765/) no navegador do aluno. Abra `/professor` no endereço da Vercel para projetar o ranking compartilhado. Somente nome, identificador e XP vão para o ranking. Código, entrada, diagnósticos e rascunhos ficam no computador do aluno.
+
+Sem `--compilador`, o Mac prefere Clang e o Linux prefere GCC, com o outro compilador como alternativa. No macOS, `/usr/bin/gcc` costuma chamar Clang. Para testar GNU GCC de verdade no Mac, indique o executável GNU instalado, por exemplo `--compilador gcc-15`.
+
+Sem `--ranking-url`, o ranking usa `piloto/ranking.sqlite3`, criado automaticamente. O banco local e o Turso são independentes. O servidor local escuta apenas em `127.0.0.1`. A execução de C usa as permissões da conta que iniciou o jogo, como no terminal do laboratório. Use uma conta de aluno, sem privilégios administrativos. O limite de tempo não isola arquivos e processos da conta.
 
 ## Publicar na Vercel
 
-Suba a pasta para o GitHub e importe o repositório pela Vercel com o preset **Other**. A raiz do repositório é a raiz do projeto. O `vercel.json` publica `public/` e as funções da pasta `api/`. Não há comando de build. Configure as variáveis de `.env.example` no ambiente da Vercel antes do deploy.
+Importe o repositório GitHub pela Vercel com o preset **Other**. A raiz do repositório é a raiz do projeto. O `vercel.json` publica `public/` e as funções da pasta `api/`. Não há comando de build. Para usar o compilador de cada computador, configure apenas as duas variáveis do Turso em **Production**.
 
 | Variável | Função |
 | --- | --- |
-| `CODLEARN_RUNNER_URL` | URL HTTPS de um executor C isolado, acessível pela Vercel |
-| `CODLEARN_RUNNER_TOKEN` | Token Bearer do executor |
 | `TURSO_DATABASE_URL` | URL `libsql://` ou `https://` do banco Turso (compatível com SQLite) |
 | `TURSO_AUTH_TOKEN` | Token do banco Turso com permissão de escrita |
+| `CODLEARN_RUNNER_URL` | Opcional. URL HTTPS do executor para jogar direto pelo site publicado |
+| `CODLEARN_RUNNER_TOKEN` | Opcional. Token Bearer do executor online |
 
-A função de ranking cria a tabela no Turso na primeira chamada. O banco remoto e o arquivo SQLite local são independentes. As pontuações existentes no navegador são enviadas ao abrir o ranking.
+A função de ranking cria a tabela no Turso na primeira chamada. As pontuações existentes no navegador são enviadas ao abrir o ranking, se estiver aberto pelo mesmo endereço onde foram obtidas.
 
-### Contrato do executor online
+### Contrato do executor online opcional
 
 A função `/api/executar` recebe o código do navegador e chama o executor via POST JSON autenticado. Envia `codigo` (texto C), `entrada` (stdin) e `apenas_verificar` (booleano). O modo de verificação deve fazer a análise de sintaxe sem rodar o programa e aceitar um arquivo sem `main`. Retorne JSON com `estado`, `saida` e `diagnostico`, todos strings. Os estados aceitos são `ok`, `erro_compilacao`, `erro_execucao`, `tempo_compilacao`, `tempo_execucao` e `erro_executor`. Para destacar a linha, envie diagnósticos do Clang no formato `missao.c:linha:coluna: error: mensagem`.
 
@@ -36,7 +48,8 @@ O ranking recebe a pontuação calculada no navegador e serve para incentivar a 
 ## Verificar o executor local
 
 ```sh
-python3 -B piloto/testar.py
+python3 -B piloto/testar.py --compilador clang
+python3 -B piloto/testar.py --compilador gcc
 ```
 
 ## Painel do professor

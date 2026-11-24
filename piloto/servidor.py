@@ -1,12 +1,16 @@
+import argparse
 import json
 import sqlite3
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from urllib.error import HTTPError
+from urllib.parse import urlsplit
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from professor import DURACAO, painel
 from ranking import listar
-from testar import executar_c
+from testar import executar_c, localizar_compilador
 
 PASTA = Path(__file__).resolve().parent
 PUBLICO = PASTA.parent / "public"
@@ -14,7 +18,14 @@ HOST = "127.0.0.1:8765"
 ORIGEM = f"http://{HOST}"
 
 
+class SemRedirecionamento(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 class Piloto(BaseHTTPRequestHandler):
+    compilador = None
+    ranking_remoto = None
     def responder(self, dados, tipo, status=200, cookie=None):
         self.send_response(status)
         self.send_header("Content-Type", tipo if tipo == "image/png" else f"{tipo}; charset=utf-8")
@@ -37,6 +48,10 @@ class Piloto(BaseHTTPRequestHandler):
             self.responder((PUBLICO / "licoes.js").read_bytes(), "text/javascript")
         elif self.path == "/codrich.png":
             self.responder((PUBLICO / "codrich.png").read_bytes(), "image/png")
+        elif self.path == "/professor" and self.ranking_remoto:
+            self.send_response(302)
+            self.send_header("Location", self.ranking_remoto + "/professor")
+            self.end_headers()
         elif self.path == "/professor":
             self.responder((PUBLICO / "professor.html").read_bytes(), "text/html")
         elif self.path == "/api/professor":
@@ -89,12 +104,13 @@ class Piloto(BaseHTTPRequestHandler):
             return
 
         try:
-            estado, saida, diagnostico = executar_c(codigo, entrada, apenas_verificar=apenas_verificar)
+            estado, saida, diagnostico = executar_c(
+                codigo, entrada, apenas_verificar=apenas_verificar, compilador=self.compilador,
+            )
         except OSError:
-            estado, saida, diagnostico = "erro_executor", "", "Confira se o Clang está instalado no Mac."
+            estado, saida, diagnostico = "erro_executor", "", "Confira se o Clang ou o GCC está instalado nesta máquina."
         resultado = dict(estado=estado, saida=saida, diagnostico=diagnostico)
         self.responder(json.dumps(resultado).encode("utf-8"), "application/json")
-
 
     def responder_professor(self, acao, senha=None):
         try:
@@ -110,6 +126,9 @@ class Piloto(BaseHTTPRequestHandler):
         self.responder(json.dumps(valor).encode("utf-8"), "application/json", status, cookie)
 
     def responder_ranking(self, dados=None):
+        if self.ranking_remoto:
+            self.encaminhar_ranking(dados)
+            return
         try:
             linhas = listar(dados)
         except ValueError:
@@ -121,7 +140,47 @@ class Piloto(BaseHTTPRequestHandler):
         self.responder(json.dumps(linhas).encode("utf-8"), "application/json")
 
 
-if __name__ == "__main__":
+    def encaminhar_ranking(self, dados):
+        pedido = Request(
+            self.ranking_remoto + "/api/ranking",
+            data=json.dumps(dados).encode("utf-8") if dados is not None else None,
+            headers={"Origin": self.ranking_remoto, "Content-Type": "application/json"},
+        )
+        try:
+            with build_opener(SemRedirecionamento()).open(pedido, timeout=4) as resposta:
+                linhas = json.loads(resposta.read(32768))
+            if not isinstance(linhas, list):
+                raise ValueError
+        except HTTPError as erro:
+            self.send_error(erro.code if erro.code in {400, 403, 413, 415, 503} else 502)
+            return
+        except (OSError, ValueError):
+            self.send_error(502)
+            return
+        self.responder(json.dumps(linhas).encode("utf-8"), "application/json")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Inicia o CodLearn só neste computador.")
+    parser.add_argument("--compilador", help="Executável do GCC ou Clang. No Linux, o padrão é GCC. No Mac, Clang.")
+    parser.add_argument("--ranking-url", help="Endereço HTTPS do CodLearn na Vercel para compartilhar o ranking.")
+    args = parser.parse_args()
+    try:
+        Piloto.compilador = localizar_compilador(args.compilador)
+        if args.ranking_url:
+            url = urlsplit(args.ranking_url)
+            if (url.scheme != "https" or not url.hostname or url.username or url.password
+                    or url.path not in ("", "/") or url.query or url.fragment):
+                raise ValueError("Use o endereço HTTPS inicial do CodLearn, sem /professor ou outro caminho.")
+            Piloto.ranking_remoto = f"{url.scheme}://{url.netloc}"
+    except (OSError, ValueError) as erro:
+        parser.error(str(erro))
     with HTTPServer(("127.0.0.1", 8765), Piloto) as servidor:
-        print(f"CodLearn em {ORIGEM}/", flush=True)
+        print(f"CodLearn em {ORIGEM}/ · Compilador: {Piloto.compilador}", flush=True)
+        if Piloto.ranking_remoto:
+            print(f"Ranking compartilhado: {Piloto.ranking_remoto}/professor", flush=True)
         servidor.serve_forever()
+
+
+if __name__ == "__main__":
+    main()

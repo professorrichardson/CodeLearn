@@ -390,23 +390,23 @@
           ? 'Coloque ponto e vírgula no fim da instrução. Se a seta estiver na próxima linha, revise a linha anterior.'
           : 'Confira se o símbolo está faltando neste trecho ou na linha anterior.'
       };
-      const nome = mensagem.match(/(?:undeclared identifier|undeclared function) '([^']+)'/);
+      const nome = mensagem.match(/(?:undeclared identifier|undeclared function|implicit declaration of function) '([^']+)'|^'([^']+)' undeclared/);
       if (nome) return {
-        explicacao: `O compilador não reconheceu o nome ${nome[1]}.`,
+        explicacao: `O compilador não reconheceu o nome ${nome[1] ?? nome[2]}.`,
         dica: 'Confira se o nome foi escrito como na declaração e se foi declarado antes de ser usado.'
       };
       const mensagensComDicas = [
         [/expected expression/, 'Falta um valor ou uma expressão aqui.', 'Procure um operador sem valor ou parênteses vazios.'],
         [/missing terminating/, 'Um texto ou caractere ficou sem fechar.', 'Use a mesma aspa que abriu o trecho para fechá-lo.'],
         [/redefinition/, 'Este nome já foi definido.', 'Confira as declarações anteriores e remova a repetição.'],
-        [/file not found/, 'O compilador não encontrou o cabeçalho.', 'Confira a grafia do arquivo na linha do #include.']
+        [/file not found|No such file or directory/, 'O compilador não encontrou o cabeçalho.', 'Confira a grafia do arquivo na linha do #include.']
       ];
       for (const [padrao, explicacao, dica] of mensagensComDicas) {
         if (padrao.test(mensagem)) return { explicacao, dica };
       }
       return {
         explicacao: 'O compilador encontrou um problema perto deste ponto.',
-        dica: 'Revise esse trecho e confira o diagnóstico original para ver o que o Clang informou.'
+        dica: 'Revise esse trecho e confira o diagnóstico original para ver o que o compilador informou.'
       };
     }
 
