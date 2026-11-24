@@ -31,6 +31,12 @@ class Piloto(BaseHTTPRequestHandler):
         self.send_header("Content-Type", tipo if tipo == "image/png" else f"{tipo}; charset=utf-8")
         if self.path in {"/api/ranking", "/api/professor", "/professor"}:
             self.send_header("Cache-Control", "no-store")
+        if urlsplit(self.path).path == "/compilador/worker.mjs":
+            self.send_header(
+                "Content-Security-Policy",
+                "default-src 'none'; script-src 'self' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; "
+                "connect-src https://cdn.jsdelivr.net",
+            )
         if cookie:
             self.send_header("Set-Cookie", cookie)
         self.send_header("Content-Length", str(len(dados)))
@@ -40,25 +46,28 @@ class Piloto(BaseHTTPRequestHandler):
         self.wfile.write(dados)
 
     def do_GET(self):
+        caminho = urlsplit(self.path).path
         if self.headers.get("Host") != HOST:
             self.send_error(403)
-        elif self.path == "/":
+        elif caminho == "/":
             self.responder((PUBLICO / "index.html").read_bytes(), "text/html")
-        elif self.path == "/licoes.js":
+        elif caminho == "/licoes.js":
             self.responder((PUBLICO / "licoes.js").read_bytes(), "text/javascript")
-        elif self.path == "/codrich.png":
+        elif caminho in {"/compilador/executor.js", "/compilador/worker.mjs", "/compilador/wasi-host.mjs"}:
+            self.responder((PUBLICO / caminho.lstrip("/")).read_bytes(), "text/javascript")
+        elif caminho == "/codrich.png":
             self.responder((PUBLICO / "codrich.png").read_bytes(), "image/png")
-        elif self.path == "/professor" and self.ranking_remoto:
+        elif caminho == "/professor" and self.ranking_remoto:
             self.send_response(302)
             self.send_header("Location", self.ranking_remoto + "/professor")
             self.end_headers()
-        elif self.path == "/professor":
+        elif caminho == "/professor":
             self.responder((PUBLICO / "professor.html").read_bytes(), "text/html")
-        elif self.path == "/api/professor":
+        elif caminho == "/api/professor":
             self.responder_professor("listar")
-        elif self.path == "/api/ranking":
+        elif caminho == "/api/ranking":
             self.responder_ranking()
-        elif self.path == "/energia.c":
+        elif caminho == "/energia.c":
             self.responder((PASTA / "energia.c").read_bytes(), "text/plain")
         else:
             self.send_error(404)

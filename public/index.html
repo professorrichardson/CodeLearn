@@ -278,6 +278,7 @@
     </form>
   </dialog>
   <script src="/licoes.js"></script>
+  <script src="/compilador/executor.js"></script>
   <script>
     const form = document.querySelector('#laboratorio');
     const botao = form.querySelector('button[type=submit]');
@@ -453,26 +454,28 @@
     }
 
     const local = ['127.0.0.1', 'localhost'].includes(location.hostname) && location.port === '8765';
+    const usarNavegador = !local || new URLSearchParams(location.search).get('executor') === 'navegador';
 
-    function enviarCodigo(fonte, apenasVerificar = false, valor = entrada.value) {
-      return fetch(local ? '/executar' : '/api/executar', {
+    async function enviarCodigo(fonte, apenasVerificar = false, valor = entrada.value, informar) {
+      const textoEntrada = apenasVerificar ? '' : valor + '\n';
+      if (usarNavegador) {
+        return executorNavegador.enviar({ codigo: fonte, entrada: textoEntrada, apenasVerificar }, informar);
+      }
+      const resposta = await fetch('/executar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          codigo: fonte, entrada: apenasVerificar ? '' : valor + '\n',
-          apenas_verificar: apenasVerificar
-        })
+        body: JSON.stringify({ codigo: fonte, entrada: textoEntrada, apenas_verificar: apenasVerificar })
       });
+      if (!resposta.ok) throw new Error('Executor local indisponível');
+      return resposta.json();
     }
 
     async function verificarLinha() {
       const fonte = codigo.value;
-      if (botao.disabled || fonte === codigoVerificado) return;
+      if (botao.disabled || fonte === codigoVerificado || (usarNavegador && !executorNavegador.podeVerificar)) return;
       const tentativa = ++verificacao;
       try {
-        const resposta = await enviarCodigo(fonte, true);
-        if (!resposta.ok) throw new Error();
-        const resultado = await resposta.json();
+        const resultado = await enviarCodigo(fonte, true);
         if (tentativa !== verificacao || fonte !== codigo.value) return;
         if (!['ok', 'erro_compilacao'].includes(resultado.estado)) throw new Error();
         codigoVerificado = fonte;
@@ -914,9 +917,7 @@
       for (const [valor, esperado, estadoEsperado = 'ok'] of licao.testes ?? []) {
         let teste = resultado;
         if (valor !== entradaUsada.trim().replace(/\s+/g, ' ')) {
-          const resposta = await enviarCodigo(fonte, false, valor);
-          if (!resposta.ok) throw new Error();
-          teste = await resposta.json();
+          teste = await enviarCodigo(fonte, false, valor);
         }
         const confere = licao.saidaTextual
           ? normalizarMensagem(teste.saida) === normalizarMensagem(esperado)
@@ -967,14 +968,8 @@
       saida.textContent = 'Processando…';
       detalhes.hidden = true;
       try {
-        const resposta = await enviarCodigo(codigoEnviado, Boolean(licao.sintaxe), entradaUsada);
-        if (!resposta.ok) {
-          saida.textContent = 'Sem saída disponível.';
-          estado.textContent = 'Executor indisponível.';
-          mostrarRetorno('erro', 'Executor indisponível', resposta.status === 503 ? 'Confira a configuração da publicação.' : 'Não foi possível verificar o código. Tente novamente.');
-          return;
-        }
-        const resultado = await resposta.json();
+        const resultado = await enviarCodigo(codigoEnviado, Boolean(licao.sintaxe), entradaUsada,
+          mensagem => { estado.textContent = mensagem; });
         estado.textContent = resultado.estado === 'ok' && licao.sintaxe ? 'Sintaxe verificada.' : mensagens[resultado.estado];
         if (resultado.estado === 'erro_compilacao') {
           const encontrados = lerErros(resultado.diagnostico, codigoEnviado);
@@ -994,7 +989,8 @@
           const erro = lerErros(resultado.diagnostico, codigoEnviado)[0];
           mostrarRetorno('erro', resultado.estado === 'erro_compilacao' ? 'Erro de compilação' : 'Execução interrompida',
             erro ? `Linha ${erro.linha}, coluna ${erro.coluna}. ${erro.explicacao}\n\nDica: ${erro.dica}`
-              : estado.textContent + ' Confira o terminal e o diagnóstico original.');
+              : resultado.estado === 'erro_executor' && resultado.diagnostico ? resultado.diagnostico
+                : estado.textContent + ' Confira o terminal e o diagnóstico original.');
           return;
         }
         const pendencia = await avaliarLicao(licoes[indiceLicao], codigoEnviado, entradaUsada, resultado);
