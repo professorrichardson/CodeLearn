@@ -1,6 +1,6 @@
 import { consultar, criarRanking, criarBase, listarXP } from '../server/turso.mjs';
 
-export default async function ranking(request) {
+async function ranking(request) {
   if (!['GET', 'POST'].includes(request.method)) return new Response(null, { status: 405 });
   if (!process.env.TURSO_DATABASE_URL || !process.env.TURSO_AUTH_TOKEN) {
     return new Response(null, { status: 503 });
@@ -55,3 +55,5 @@ export default async function ranking(request) {
     return new Response(null, { status: 502 });
   }
 }
+
+export default { fetch: ranking };

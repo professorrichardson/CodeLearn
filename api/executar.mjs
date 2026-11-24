@@ -1,4 +1,4 @@
-export default async function executar(request) {
+async function executar(request) {
   if (request.method !== 'POST') return new Response(null, { status: 405 });
   if (request.headers.get('origin') !== new URL(request.url).origin) {
     return new Response(null, { status: 403 });
@@ -47,3 +47,5 @@ export default async function executar(request) {
     return new Response(null, { status: 502 });
   }
 }
+
+export default { fetch: executar };

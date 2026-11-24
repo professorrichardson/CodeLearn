@@ -18,7 +18,7 @@ function responder(status, dados = null, cookie) {
   return Response.json(dados, { status, headers });
 }
 
-export default async function professor(request) {
+async function professor(request) {
   if (!['GET', 'POST'].includes(request.method)) return responder(405);
   if (!process.env.TURSO_DATABASE_URL || !process.env.TURSO_AUTH_TOKEN) return responder(503);
   let acao = 'listar';
@@ -87,3 +87,5 @@ export default async function professor(request) {
     return responder(503);
   }
 }
+
+export default { fetch: professor };

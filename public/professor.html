@@ -66,7 +66,10 @@
         <tbody id="jogadores"></tbody>
       </table>
     </section>
-    <p id="indisponivel" role="status" hidden></p>
+    <div id="indisponivel">
+      <p id="situacao-painel" role="status">Verificando acesso ao painel…</p>
+      <button type="button" id="repetir" hidden>Tentar novamente</button>
+    </div>
   </main>
   <script>
     const acesso = document.querySelector('#acesso');
@@ -79,6 +82,8 @@
     const jogadores = document.querySelector('#jogadores');
     const mensagem = document.querySelector('#mensagem');
     const indisponivel = document.querySelector('#indisponivel');
+    const situacaoPainel = document.querySelector('#situacao-painel');
+    const repetir = document.querySelector('#repetir');
     const resetar = document.querySelector('#resetar');
     const sair = document.querySelector('#sair');
     let cadastrar = false;
@@ -86,11 +91,12 @@
     let consulta = 0;
 
     function pedir(acao, dados = {}) {
-      return fetch('/api/professor', acao ? {
+      const opcoes = acao ? {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ acao, ...dados })
-      } : { cache: 'no-store' });
+      } : { cache: 'no-store' };
+      return fetch('/api/professor', { ...opcoes, signal: AbortSignal.timeout(12000) });
     }
 
     function mostrarSenha(ativa) {
@@ -135,6 +141,10 @@
     async function atualizar() {
       if (ocupado) return;
       const atual = ++consulta;
+      if (placar.hidden && acesso.hidden) {
+        repetir.hidden = true;
+        situacaoPainel.textContent = 'Verificando acesso ao painel…';
+      }
       try {
         const resposta = await pedir();
         if (atual !== consulta) return;
@@ -142,7 +152,12 @@
           mostrarAcesso(resposta.status === 428);
           return;
         }
-        if (!resposta.ok) throw new Error();
+        if (!resposta.ok) {
+          const erro = resposta.status === 503
+            ? 'O painel não conseguiu acessar o Turso. Confira TURSO_DATABASE_URL e TURSO_AUTH_TOKEN no deploy de produção.'
+            : `O painel recebeu HTTP ${resposta.status} da API. Confira o deploy e tente novamente.`;
+          throw new Error(erro);
+        }
         const linhas = await resposta.json();
         if (atual !== consulta) return;
         acesso.hidden = true;
@@ -150,11 +165,16 @@
         placar.hidden = false;
         controles.hidden = false;
         montarRanking(linhas);
-      } catch {
+      } catch (erro) {
         if (atual !== consulta) return;
         if (placar.hidden) {
           indisponivel.hidden = false;
-          indisponivel.textContent = 'Painel indisponível. Confira a conexão e recarregue.';
+          situacaoPainel.textContent = erro.name === 'TimeoutError'
+            ? 'O servidor demorou para responder. Tente novamente.'
+            : erro instanceof TypeError || erro instanceof SyntaxError
+              ? 'Resposta do painel indisponível. Confira o endereço e tente novamente.'
+              : erro.message;
+          repetir.hidden = false;
         } else estado.textContent = 'Atualização indisponível. Tentando novamente…';
       }
     }
@@ -206,6 +226,7 @@
       if (confirm('Zerar o ranking? Os XP já exibidos sairão do placar. A próxima pontuação começará a contar a partir de agora.')) alterar('resetar');
     });
     sair.addEventListener('click', () => alterar('sair'));
+    repetir.addEventListener('click', atualizar);
     atualizar();
     setInterval(() => { if (acesso.hidden && !placar.hidden) atualizar(); }, 3000);
   </script>
