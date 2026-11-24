@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CodLearn · Painel do professor</title>
+  <style>
+    :root { color-scheme: dark; --fundo: #181818; --painel: #242424; --borda: #48403a; --texto: #f5f0eb; --suave: #cbbfb4; --laranja: #ef8d22; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--fundo); color: var(--texto); font: 1rem/1.5 system-ui, sans-serif; }
+    main { max-width: 1100px; margin: auto; padding: clamp(1rem, 3vw, 2.5rem); }
+    header, .titulo, .controles { display: flex; gap: .65rem; align-items: center; flex-wrap: wrap; }
+    header { justify-content: space-between; border-bottom: 1px solid var(--borda); padding-bottom: 1rem; }
+    h1, h2 { margin: 0; }
+    h1 { font-size: clamp(1.3rem, 3vw, 2rem); }
+    h2 { font-size: 1.2rem; }
+    button { border: 1px solid var(--borda); border-radius: .5rem; padding: .45rem .7rem; background: var(--painel); color: var(--texto); font: inherit; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .65; }
+    :focus-visible { outline: 2px solid #ffb461; outline-offset: 3px; }
+    #acesso { max-width: 26rem; padding: 1rem; margin: 2rem auto; background: var(--painel); border: 1px solid var(--borda); border-radius: .75rem; }
+    #acesso button[type=submit] { margin-top: .8rem; background: var(--laranja); color: #211506; }
+    label { display: block; margin: .65rem 0 .3rem; }
+    .senha { display: flex; gap: .4rem; }
+    input { min-width: 0; flex: 1; padding: .45rem; border: 1px solid var(--borda); border-radius: .4rem; background: var(--fundo); font: inherit; }
+    #mensagem:empty { display: none; }
+    #mensagem { color: #ffbcb5; }
+    #estado { color: var(--suave); }
+    #resetar { background: #542221; color: #ffd4ce; }
+    table { width: 100%; border-collapse: collapse; font-size: clamp(1rem, 2.5vw, 1.6rem); }
+    th, td { text-align: left; padding: .55rem .75rem; border-bottom: 1px solid var(--borda); overflow-wrap: anywhere; }
+    th { color: var(--suave); font-size: .9rem; }
+    th:last-child, td:last-child { text-align: right; white-space: nowrap; }
+    td:first-child { width: 4rem; }
+    td:last-child { font-weight: 750; color: #ffd2a0; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="titulo">
+        <img src="/codrich.png" alt="CodRich" width="36" height="36">
+        <h1>Painel do professor</h1>
+      </div>
+      <div id="controles" hidden>
+        <div class="controles">
+          <button id="resetar">Zerar ranking</button>
+          <button id="sair">Sair</button>
+        </div>
+      </div>
+    </header>
+    <form id="acesso" hidden>
+      <h2 id="titulo-acesso"></h2>
+      <p id="orientacao"></p>
+      <label for="senha">Senha</label>
+      <div class="senha">
+        <input id="senha" type="password" required maxlength="128">
+        <button type="button" id="ver-senha" aria-label="Mostrar senha" aria-pressed="false">👁</button>
+      </div>
+      <p id="mensagem" role="alert"></p>
+      <button type="submit" id="enviar"></button>
+    </form>
+    <section id="placar" aria-label="Ranking da turma" hidden>
+      <p id="estado" role="status"></p>
+      <table>
+        <thead><tr><th scope="col">Posição</th><th scope="col">Nome</th><th scope="col">XP</th></tr></thead>
+        <tbody id="jogadores"></tbody>
+      </table>
+    </section>
+    <p id="indisponivel" role="status" hidden></p>
+  </main>
+  <script>
+    const acesso = document.querySelector('#acesso');
+    const senha = document.querySelector('#senha');
+    const ver = document.querySelector('#ver-senha');
+    const enviar = document.querySelector('#enviar');
+    const placar = document.querySelector('#placar');
+    const estado = document.querySelector('#estado');
+    const controles = document.querySelector('#controles');
+    const jogadores = document.querySelector('#jogadores');
+    const mensagem = document.querySelector('#mensagem');
+    const indisponivel = document.querySelector('#indisponivel');
+    const resetar = document.querySelector('#resetar');
+    const sair = document.querySelector('#sair');
+    let cadastrar = false;
+    let ocupado = false;
+    let consulta = 0;
+
+    function pedir(acao, dados = {}) {
+      return fetch('/api/professor', acao ? {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao, ...dados })
+      } : { cache: 'no-store' });
+    }
+
+    function mostrarSenha(ativa) {
+      senha.type = ativa ? 'text' : 'password';
+      ver.setAttribute('aria-pressed', String(ativa));
+      ver.setAttribute('aria-label', ativa ? 'Ocultar senha' : 'Mostrar senha');
+    }
+
+    ver.addEventListener('click', () => mostrarSenha(senha.type === 'password'));
+
+    function mostrarAcesso(primeiroAcesso) {
+      cadastrar = primeiroAcesso;
+      placar.hidden = true;
+      controles.hidden = true;
+      jogadores.replaceChildren();
+      indisponivel.hidden = true;
+      acesso.hidden = false;
+      document.querySelector('#titulo-acesso').textContent = cadastrar ? 'Cadastre sua senha' : 'Acesso do professor';
+      document.querySelector('#orientacao').textContent = cadastrar ? 'Primeiro acesso. Crie uma senha com pelo menos 8 caracteres.' : 'Digite a senha cadastrada para abrir o ranking.';
+      senha.minLength = cadastrar ? 8 : 1;
+      senha.autocomplete = cadastrar ? 'new-password' : 'current-password';
+      enviar.textContent = cadastrar ? 'Cadastrar e abrir painel' : 'Entrar';
+    }
+
+    function montarRanking(linhas) {
+      const tabela = document.createDocumentFragment();
+      for (const [indice, jogador] of linhas.entries()) {
+        const linha = document.createElement('tr');
+        for (const valor of [['🥇', '🥈', '🥉'][indice] ?? (indice + 1) + 'º', jogador.nome, jogador.pontos]) {
+          const celula = document.createElement('td');
+          celula.textContent = valor;
+          linha.append(celula);
+        }
+        tabela.append(linha);
+      }
+      jogadores.replaceChildren(tabela);
+      estado.textContent = linhas.length
+        ? 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR')
+        : 'Aguardando os primeiros XP.';
+    }
+
+    async function atualizar() {
+      if (ocupado) return;
+      const atual = ++consulta;
+      try {
+        const resposta = await pedir();
+        if (atual !== consulta) return;
+        if (resposta.status === 428 || resposta.status === 401) {
+          mostrarAcesso(resposta.status === 428);
+          return;
+        }
+        if (!resposta.ok) throw new Error();
+        const linhas = await resposta.json();
+        if (atual !== consulta) return;
+        acesso.hidden = true;
+        indisponivel.hidden = true;
+        placar.hidden = false;
+        controles.hidden = false;
+        montarRanking(linhas);
+      } catch {
+        if (atual !== consulta) return;
+        if (placar.hidden) {
+          indisponivel.hidden = false;
+          indisponivel.textContent = 'Painel indisponível. Confira a conexão e recarregue.';
+        } else estado.textContent = 'Atualização indisponível. Tentando novamente…';
+      }
+    }
+
+    acesso.addEventListener('submit', async evento => {
+      evento.preventDefault();
+      ocupado = true;
+      consulta++;
+      enviar.disabled = true;
+      mensagem.textContent = '';
+      try {
+        const resposta = await pedir(cadastrar ? 'cadastrar' : 'entrar', { senha: senha.value });
+        senha.value = '';
+        mostrarSenha(false);
+        if (resposta.status === 409) mostrarAcesso(false);
+        if (!resposta.ok) {
+          mensagem.textContent = resposta.status === 401 ? 'Senha incorreta.'
+            : resposta.status === 409 ? 'A senha já foi cadastrada. Entre com ela.'
+            : 'Não foi possível abrir o painel. Tente novamente.';
+        }
+      } catch {
+        mensagem.textContent = 'Falha na conexão. Tente novamente.';
+      } finally {
+        ocupado = false;
+        enviar.disabled = false;
+      }
+      if (!mensagem.textContent) atualizar();
+    });
+
+    async function alterar(acao) {
+      ocupado = true;
+      consulta++;
+      resetar.disabled = sair.disabled = true;
+      let falhou = false;
+      try {
+        const resposta = await pedir(acao);
+        falhou = !resposta.ok && resposta.status !== 401;
+      } catch {
+        falhou = true;
+      } finally {
+        ocupado = false;
+        resetar.disabled = sair.disabled = false;
+      }
+      if (falhou) estado.textContent = 'Não foi possível concluir a ação. Tente novamente.';
+      else atualizar();
+    }
+
+    resetar.addEventListener('click', () => {
+      if (confirm('Zerar o ranking? Os XP já exibidos sairão do placar. A próxima pontuação começará a contar a partir de agora.')) alterar('resetar');
+    });
+    sair.addEventListener('click', () => alterar('sair'));
+    atualizar();
+    setInterval(() => { if (acesso.hidden && !placar.hidden) atualizar(); }, 3000);
+  </script>
+</body>
+</html>

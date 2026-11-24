@@ -1,0 +1,1045 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CodLearn — Laboratório de C</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f9f3e7; color: #252044; font: 1rem/1.5 system-ui, sans-serif; }
+    main { max-width: 1100px; margin: auto; padding: clamp(1rem, 4vw, 3rem); }
+    h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 1; margin: .35em 0; }
+    h2 { margin: 0 0 .5rem; }
+    .layout { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr); gap: 1rem; }
+    label { display: block; margin: .7rem 0 .3rem; font-weight: 700; }
+    textarea { width: 100%; padding: .8rem; border: 2px solid #dde4ed; border-radius: .75rem; font: .95rem/1.45 monospace; }
+    .editor { position: relative; overflow: hidden; background: #1e1e1e; border: 2px solid #dde4ed; border-radius: .75rem; }
+    .editor:focus-within { outline: 2px solid #ad5200; }
+    #codigo, #cores { margin: 0; border: 0; border-radius: 0; padding: .8rem; font: .95rem/1.5 monospace; tab-size: 4; white-space: pre; overflow-wrap: normal; }
+    #codigo { position: relative; display: block; height: 20rem; resize: none; background: transparent; color: transparent; caret-color: #fff; outline: none; }
+    #codigo::selection { color: #fff; background: #3c5278; }
+    #cores { position: absolute; top: 0; left: 0; min-width: 100%; max-height: none; overflow: visible; color: #d4d4d4; pointer-events: none; }
+    .linha { position: relative; display: block; min-height: 1.5em; }
+    .linha.erro { background: #522b32; box-shadow: inset 3px 0 #ff8484; }
+    .seta-erro { position: absolute; bottom: -.42em; z-index: 1; color: #ff9999; font-size: inherit; line-height: 1; }
+    #dicas-erros p { margin: .15rem 0 .65rem; }
+    .comentario { color: #83b76e; }
+    .texto { color: #e8a88d; }
+    .chave { color: #82b8f1; }
+    .numero { color: #bee39f; }
+    .funcao { color: #e4e0a1; }
+    .diretiva { color: #daa7e8; }
+    #dicas-erros button { text-align: left; margin: .25rem 0; }
+    @media (forced-colors: active) {
+      #codigo { color: CanvasText; background: Canvas; }
+      #cores { display: none; }
+    }
+    button { border: 0; border-radius: .8rem; padding: .7rem 1rem; background: #ef8d22; color: white; font: inherit; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .65; cursor: wait; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 16rem; overflow: auto; }
+    #estado { font-weight: 700; }
+    select { width: 100%; padding: .55rem; font: inherit; }
+    .local { font-size: .9rem; }
+    :root { color-scheme: light; --superficie: #fff; --fundo: #f6f8fb; --texto: #1e293b; --suave: #475569; --borda: #dde4ed; --laranja: #ef8d22; --quente: #fff3e4; }
+    body { background: var(--fundo); color: var(--texto); }
+    main { max-width: 1440px; padding: 1rem clamp(.75rem, 3vw, 2.25rem) 2rem; }
+    header { display: flex; align-items: center; gap: .6rem 1rem; flex-wrap: wrap; padding: .5rem 0 .75rem; border-bottom: 1px solid var(--borda); }
+    h1 { font-size: 1.15rem; letter-spacing: -.025em; margin: 0 auto 0 0; }
+    header p { margin: 0; font-size: .9rem; }
+    .layout { grid-template-columns: minmax(165px, 220px) minmax(0, 1fr); margin-top: 1rem; }
+    .niveis { display: flex; flex-direction: column; min-width: 0; padding: .65rem; }
+    .niveis nav { width: 100%; padding: 0; border: 0; }
+    .niveis .acoes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: auto; padding-top: .75rem; gap: .4rem; }
+    .niveis .acoes:has(button[hidden] + button[hidden]) { display: none; }
+    .niveis .acoes button:only-of-type, .niveis .acoes button:first-child[hidden] + button, .niveis .acoes:has(button:last-child[hidden]) button:first-child { grid-column: 1 / -1; }
+    .niveis .acoes button { min-height: 2.5rem; padding: .4rem; border-radius: .5rem; font-size: .79rem; }
+    .niveis #anterior { background: var(--superficie); color: var(--texto); border: 1px solid var(--borda); }
+    .niveis, #laboratorio { background: var(--superficie); border: 1px solid var(--borda); border-radius: .85rem; }
+    nav { min-width: 0; align-self: start; padding: .65rem; }
+    nav h2 { font-size: .95rem; margin: .15rem .45rem; }
+    #contagem { font-size: .78rem; color: var(--suave); margin: .15rem .45rem .6rem; }
+    #mapa { list-style: none; padding: 0; margin: 0; display: grid; gap: .25rem; }
+    .missao-card { display: flex; flex-direction: column; align-items: flex-start; width: 100%; padding: .5rem; border-radius: .45rem; color: var(--suave); background: transparent; text-align: left; font-size: .82rem; }
+    button.missao-card:hover, .missao-card.ativa { background: var(--quente); color: #693500; }
+    .missao-card.ativa { box-shadow: inset 3px 0 var(--laranja); }
+    button.missao-card.concluida, button.missao-card.concluida:hover { background: #e8f7ee; color: #155d39; }
+    .missao-card.concluida.ativa { box-shadow: inset 3px 0 #16834b; }
+    .missao-card small { font-size: .72rem; }
+    #etapa { margin: 0; color: #864300; font-size: .8rem; font-weight: 750; }
+    #missao { font-size: 1.2rem; margin: 0; }
+    #laboratorio { box-shadow: none; min-width: 0; padding: .75rem; }
+    .editor, textarea, select, fieldset { border-color: var(--borda); }
+    .editor:focus-within { outline-color: #ad5200; }
+    :focus-visible { outline: 2px solid #ad5200; outline-offset: 3px; }
+    button { background: var(--laranja); color: #241501; padding: .45rem .7rem; }
+    button:hover:not(:disabled) { filter: brightness(.96); }
+    #anterior, #exemplos button, #abrir-ranking, #pedir-dica { background: var(--quente); }
+    .acoes { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin-top: .6rem; }
+    fieldset { margin: .55rem 0; border-radius: .5rem; }
+    fieldset label { margin-top: 0; }
+    legend { font-weight: 700; }
+    .linha-entrada { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .5rem; }
+    .linha-entrada label { margin: 0; font-size: .82rem; white-space: nowrap; }
+    #entrada { flex: 1 1 9rem; width: auto; min-width: 0; margin: 0; padding: .35rem .5rem; resize: vertical; border: 1px solid #68717f; border-radius: .35rem; background: #30343d; color: #fff; }
+    #entrada::placeholder { color: #c4cbd6; }
+    #entrada[aria-invalid="true"] { border-color: #ffb461; }
+    #exemplos { display: flex; flex-wrap: wrap; gap: .25rem; }
+    #exemplos button { padding: .3rem .5rem; border-radius: .35rem; font-size: .78rem; white-space: nowrap; }
+    #lembrete-entrada { margin: 0; }
+    #lembrete-entrada:not(:empty) { margin: .4rem 0 0; color: #ffd2a0; font-size: .85rem; }
+    #retorno { --sinal: #16834b; --painel: #e8f7ee; }
+    #retorno[data-tom="erro"] { --sinal: #b42318; --painel: #fff0ee; }
+    #retorno[data-tom="saida"] { --sinal: #a84c00; --painel: #fff3e4; }
+    .retorno-titulo { margin: -.25rem -.25rem .75rem; padding: .6rem .75rem; border-radius: .55rem; background: var(--painel); color: var(--texto-retorno, var(--sinal)); }
+    .retorno-titulo h2 { margin: 0; font-size: 1.15rem; }
+    #retorno-texto { white-space: pre-wrap; overflow-wrap: anywhere; }
+    #retorno button { background: var(--sinal); color: white; }
+    .barra-editor { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+    .executar { flex: none; width: 2.5rem; height: 2.5rem; padding: 0; border-radius: .6rem; }
+    .barra-editor { margin-bottom: .65rem; }
+    .acoes-editor { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; justify-content: flex-end; }
+    #ler-questao { background: var(--quente); font-size: .85rem; }
+    #questao { width: min(34rem, calc(100% - 2rem)); }
+    #referencia-c { margin: .5rem 0 1rem; }
+    #referencia-c > div { display: grid; grid-template-columns: minmax(3.5rem, max-content) 1fr; gap: .65rem; padding: .4rem 0; border-bottom: 1px solid var(--borda); }
+    #referencia-c dd { margin: 0; }
+    #referencia-c code { padding: .1rem .25rem; background: var(--quente); border-radius: .25rem; }
+    .editor { border-radius: .6rem .6rem 0 0; border: 0; }
+    .console { margin: 0; padding: .6rem .8rem; border-top: 1px solid #4b5563; border-radius: 0 0 .6rem .6rem; background: #22252b; color: white; }
+    .console h2 { font-size: .875rem; margin: 0; }
+    #saida { color: #f8fafc; margin: .25rem 0 0; max-height: 25vh; }
+    #painel-entrada:not([hidden]) { margin-top: .5rem; padding-top: .5rem; border-top: 1px solid #4b5563; }
+    #codigo { height: clamp(13rem, 46vh, 36rem); }
+    #pedir-dica { position: fixed; right: 1rem; bottom: 1rem; z-index: 5; display: grid; place-items: center; width: 3rem; height: 3rem; padding: 0; border: 1px solid var(--laranja); border-radius: 50%; font-size: 1.3rem; box-shadow: 0 4px 16px #1e293b25; }
+    #pergunta-dica { position: fixed; inset: auto 1rem 4.5rem auto; max-width: min(23rem, calc(100vw - 2rem)); padding: .8rem; border: 1px solid var(--borda); border-radius: .85rem; box-shadow: 0 8px 28px #1e293b30; }
+    #pergunta-dica { width: min(19rem, calc(100vw - 2rem)); overflow: visible; }
+    #pergunta-dica::after { content: ""; position: absolute; bottom: -.4rem; right: 1.1rem; width: .7rem; height: .7rem; transform: rotate(45deg); background: var(--superficie); border-right: 1px solid var(--borda); border-bottom: 1px solid var(--borda); }
+    #pergunta-dica p { margin: .3rem 0; font-size: .9rem; color: var(--suave); }
+    #pergunta-dica .acoes { gap: .35rem .6rem; }
+    #pergunta-dica button { font-size: .82rem; }
+    #pergunta-dica button:not(#confirmar-dica) { background: transparent; color: var(--suave); }
+    #rever-dicas { text-decoration: underline; text-underline-offset: .15em; }
+    .cabecalho-dica { display: flex; justify-content: space-between; align-items: center; gap: .75rem; }
+    .cabecalho-dica h2 { margin: 0; }
+    #fechar-dica { flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; padding: 0; border-radius: .45rem; background: #b42318; color: #fff; font-size: 1.35rem; line-height: 1; }
+    #copia-status:empty { display: none; }
+    #conteudo-dicas article + article { border-top: 1px solid var(--borda); margin-top: .7rem; }
+    #conteudo-dicas pre { padding: .6rem; background: var(--fundo); border-radius: .45rem; user-select: text; }
+    dialog { max-height: calc(100vh - 2rem); background: var(--superficie); width: min(26rem, calc(100% - 2rem)); border: 1px solid var(--borda); border-radius: .85rem; padding: 1.25rem; color: var(--texto); }
+    dialog::backdrop { background: #11182799; }
+    dialog input { display: block; width: 100%; padding: .5rem; font: inherit; margin-bottom: .75rem; }
+    dialog form { margin: 0; }
+    dialog input, dialog select { background: var(--fundo); color: var(--texto); border: 1px solid var(--borda); border-radius: .45rem; }
+    .marca { display: flex; align-items: center; gap: .5rem; margin-right: auto; }
+    .marca img { display: block; width: 32px; height: 32px; object-fit: contain; }
+    .marca h1 { margin: 0; }
+    #tema, #sair { background: var(--superficie); color: var(--texto); border: 1px solid var(--borda); }
+    #lista-ranking { list-style: none; margin: .75rem 0; padding: 0; }
+    #lista-ranking li { display: grid; grid-template-columns: 2rem 1fr max-content; align-items: center; gap: .5rem; padding: .5rem 0; border-bottom: 1px solid var(--borda); }
+    .posicao { text-align: center; font-weight: 750; color: var(--suave); }
+    .nome-ranking { overflow-wrap: anywhere; }
+    .perfil-header { display: flex; align-items: center; gap: .35rem; }
+    .nome-nivel { display: flex; align-items: baseline; justify-content: space-between; width: 100%; gap: .25rem; }
+    .cadeado { font-size: .75rem; }
+    :root[data-tema="escuro"] { color-scheme: dark; --superficie: #242424; --fundo: #181818; --texto: #f5f0eb; --suave: #cbbfb4; --borda: #48403a; --quente: #3e2b1a; }
+    #pergunta-dica { background: var(--superficie); color: var(--texto); }
+    [data-tema="escuro"] #retorno { --painel: #183627; --texto-retorno: #b5ebcc; }
+    [data-tema="escuro"] #retorno[data-tom="erro"] { --painel: #442420; --texto-retorno: #ffbcb5; }
+    [data-tema="escuro"] #retorno[data-tom="saida"] { --painel: #432d19; --texto-retorno: #ffd2a0; }
+    [data-tema="escuro"] :focus-visible { outline-color: #ffb461; }
+    [data-tema="escuro"] .editor:focus-within { outline-color: #ffb461; }
+    [data-tema="escuro"] .missao-card.ativa, [data-tema="escuro"] button.missao-card:hover,
+    [data-tema="escuro"] #exemplos button, [data-tema="escuro"] #abrir-ranking, [data-tema="escuro"] #ler-questao { color: #ffd2a0; }
+    [data-tema="escuro"] #etapa { color: #ffb461; }
+    [data-tema="escuro"] button.missao-card.concluida { background: #183627; color: #b5ebcc; }
+    @media (max-width: 620px) {
+      .layout { grid-template-columns: 1fr; }
+      #mapa { grid-auto-flow: column; grid-auto-columns: minmax(9rem, 1fr); overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="marca">
+        <img src="/codrich.png" width="32" height="32" alt="CodRich">
+        <h1>CodLearn · Laboratório C</h1>
+      </div>
+      <p class="perfil-header"><span id="jogador-atual"></span><span id="medalha-jogador" role="img" hidden></span></p>
+      <p id="pontuacao" aria-live="polite">0 XP</p>
+      <button type="button" id="tema" aria-pressed="false">Tema escuro</button>
+      <button type="button" id="abrir-ranking">Ranking</button>
+      <button type="button" id="sair">Sair</button>
+    </header>
+    <div class="layout">
+      <aside class="niveis">
+        <nav aria-label="Níveis">
+          <h2>Níveis</h2>
+          <p id="contagem"></p>
+          <ol id="mapa"></ol>
+        </nav>
+        <div class="acoes">
+          <button type="button" id="anterior" aria-label="Etapa anterior" hidden>‹ Anterior</button>
+          <button type="button" id="proxima" hidden>Próxima ›</button>
+        </div>
+      </aside>
+      <form id="laboratorio">
+        <div class="barra-editor">
+          <div>
+            <p id="etapa"></p>
+            <h2 id="missao" tabindex="-1"></h2>
+          </div>
+          <div class="acoes-editor">
+            <button type="button" id="ler-questao">Ler a questão</button>
+            <button type="submit" class="executar" aria-label="Executar" title="Executar" disabled><span aria-hidden="true">▶</span></button>
+          </div>
+        </div>
+        <div class="editor">
+          <pre id="cores" aria-hidden="true"></pre>
+          <textarea id="codigo" aria-label="Editor C" wrap="off" spellcheck="false" autocapitalize="off" autocomplete="off" required disabled></textarea>
+        </div>
+        <section class="console" aria-labelledby="titulo-terminal">
+          <h2 id="titulo-terminal">Terminal</h2>
+          <pre id="saida" aria-label="Saída do programa"></pre>
+          <div id="painel-entrada" hidden>
+            <div class="linha-entrada">
+              <label for="entrada">Entrada</label>
+              <textarea id="entrada" rows="1" spellcheck="false" aria-describedby="lembrete-entrada"></textarea>
+              <div id="exemplos" aria-label="Entradas de exemplo"></div>
+            </div>
+            <p id="lembrete-entrada" role="alert"></p>
+          </div>
+        </section>
+        <button type="button" id="pedir-dica" popovertarget="pergunta-dica" aria-label="Pedir ajuda ao robô" title="Dicas">🤖</button>
+        <div id="pergunta-dica" popover>
+          <strong>Quer uma dica?</strong>
+          <p id="preco-dica"></p>
+          <div class="acoes">
+            <button type="button" id="confirmar-dica">Sim, mostrar dica</button>
+            <button type="button" popovertarget="pergunta-dica" popovertargetaction="hide">Agora não</button>
+            <button type="button" id="rever-dicas" hidden>Rever dicas</button>
+          </div>
+        </div>
+        <p id="estado" role="status">Carregando a missão…</p>
+        <ul id="dicas-erros" aria-label="Erros no código" hidden></ul>
+        <details hidden>
+          <summary>Diagnóstico original</summary>
+          <pre id="diagnostico"></pre>
+        </details>
+      </form>
+    </div>
+  </main>
+  <dialog id="identificacao" aria-labelledby="titulo-identificacao">
+    <h2 id="titulo-identificacao">Digite seu nome</h2>
+    <form method="dialog" id="perfil">
+      <label for="nome-jogador">Nome</label>
+      <input id="nome-jogador" name="nome" maxlength="32" required autofocus>
+      <button>Começar</button>
+    </form>
+  </dialog>
+  <dialog id="ranking" aria-labelledby="titulo-ranking">
+    <h2 id="titulo-ranking">Ranking</h2>
+    <p id="status-ranking" role="status"></p>
+    <ol id="lista-ranking"></ol>
+    <form method="dialog"><button>Fechar</button></form>
+  </dialog>
+  <dialog id="retorno" aria-labelledby="retorno-titulo" aria-describedby="retorno-texto">
+    <div class="retorno-titulo"><h2 id="retorno-titulo"></h2></div>
+    <p id="retorno-texto"></p>
+    <form method="dialog"><button>Voltar ao editor</button></form>
+  </dialog>
+  <dialog id="modal-dica" aria-labelledby="titulo-dica">
+    <div class="cabecalho-dica">
+      <h2 id="titulo-dica">Dica do robô</h2>
+      <button type="button" id="fechar-dica" aria-label="Fechar dicas" autofocus>×</button>
+    </div>
+    <div id="conteudo-dicas"></div>
+    <p id="copia-status" role="status"></p>
+  </dialog>
+  <dialog id="questao" aria-labelledby="titulo-questao">
+    <h2 id="titulo-questao"></h2>
+    <p id="tarefa"></p>
+    <p id="conceito"></p>
+    <h3>Referência rápida de C</h3>
+    <dl id="referencia-c"></dl>
+    <form method="dialog"><button>Voltar ao editor</button></form>
+  </dialog>
+  <dialog id="desafio" aria-labelledby="titulo-desafio">
+    <h2 id="titulo-desafio">Desafio da etapa</h2>
+    <p id="enunciado-desafio"></p>
+    <form method="dialog" id="form-desafio">
+      <label for="previsao" id="pergunta"></label>
+      <select id="previsao" required></select>
+      <p>Previsão correta vale +10 XP ao concluir a etapa.</p>
+      <div class="acoes">
+        <button>Confirmar previsão</button>
+        <button type="button" id="pular-previsao">Começar sem bônus</button>
+      </div>
+    </form>
+  </dialog>
+  <script src="/licoes.js"></script>
+  <script>
+    const form = document.querySelector('#laboratorio');
+    const botao = form.querySelector('button[type=submit]');
+    const codigo = document.querySelector('#codigo');
+    const entrada = document.querySelector('#entrada');
+    const estado = document.querySelector('#estado');
+    const saida = document.querySelector('#saida');
+    const diagnostico = document.querySelector('#diagnostico');
+    const detalhes = diagnostico.closest('details');
+    const proxima = document.querySelector('#proxima');
+    const painelEntrada = document.querySelector('#painel-entrada');
+    const lembreteEntrada = document.querySelector('#lembrete-entrada');
+
+    function limparLembreteEntrada() {
+      lembreteEntrada.textContent = '';
+      entrada.removeAttribute('aria-invalid');
+    }
+
+    entrada.addEventListener('input', limparLembreteEntrada);
+    const mensagens = {
+      ok: 'Programa concluído.',
+      erro_compilacao: 'Confira o código. A compilação encontrou um erro.',
+      erro_execucao: 'O programa terminou com erro.',
+      tempo_compilacao: 'A compilação excedeu o tempo limite.',
+      tempo_execucao: 'Execução interrompida pelo limite de tempo.',
+      erro_executor: 'O executor local encontrou um erro.'
+    };
+
+    const cores = document.querySelector('#cores');
+    const dicasErros = document.querySelector('#dicas-erros');
+    const tokens = /(\/\/[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|("(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?)|(#\s*[a-z]+(?:[ \t]*<[^>\n]*>)?)|(\b(?:int|float|double|char|void|long|short|signed|unsigned|const|return|if|else|for|while|do|break|continue|switch|case|default|sizeof)\b)|(\b(?:0[xX][\da-fA-F]+|\d+(?:\.\d+)?)\b)|(\b[A-Za-z_]\w*(?=[ \t]*\())/g;
+    const classes = ['comentario', 'texto', 'diretiva', 'chave', 'numero', 'funcao'];
+    let erros = [];
+    let ultimaLinha = 1;
+    let codigoVerificado;
+    let verificacao = 0;
+    let esperaVerificacao;
+
+    function posicaoNaLinha(texto, coluna) {
+      let bytes = 1;
+      let posicao = 0;
+      for (const caractere of texto) {
+        if (bytes >= coluna) break;
+        bytes += new TextEncoder().encode(caractere).length;
+        posicao += caractere.length;
+      }
+      return posicao;
+    }
+
+    function sincronizarRolagem() {
+      cores.style.transform = `translate(${-codigo.scrollLeft}px, ${-codigo.scrollTop}px)`;
+    }
+
+    function colorir() {
+      const linhasDoCodigo = codigo.value.split('\n');
+      const conteudo = document.createDocumentFragment();
+      let numero = 0;
+      let linha;
+      function novaLinha() {
+        linha = document.createElement('span');
+        numero += 1;
+        linha.className = 'linha';
+        const colunas = new Set(erros.filter(erro => erro.linha === numero).map(erro => erro.coluna));
+        for (const coluna of colunas) {
+          const texto = linhasDoCodigo[numero - 1];
+          const prefixo = texto.slice(0, posicaoNaLinha(texto, coluna));
+          let largura = 0;
+          for (const caractere of prefixo) largura += caractere === '\t' ? 4 - largura % 4 : 1;
+          const seta = document.createElement('span');
+          seta.className = 'seta-erro';
+          seta.style.left = largura + 'ch';
+          seta.textContent = '↑';
+          linha.classList.add('erro');
+          linha.append(seta);
+        }
+        conteudo.append(linha);
+      }
+      function adicionar(texto, classe) {
+        texto.split('\n').forEach((trecho, indice) => {
+          if (indice) novaLinha();
+          if (!trecho) return;
+          if (classe) {
+            const token = document.createElement('span');
+            token.className = classe;
+            token.textContent = trecho;
+            linha.append(token);
+          } else {
+            linha.append(trecho);
+          }
+        });
+      }
+
+      novaLinha();
+      let fim = 0;
+      for (const token of codigo.value.matchAll(tokens)) {
+        adicionar(codigo.value.slice(fim, token.index));
+        adicionar(token[0], classes[token.slice(1).findIndex(Boolean)]);
+        fim = token.index + token[0].length;
+      }
+      adicionar(codigo.value.slice(fim));
+      cores.replaceChildren(conteudo);
+      sincronizarRolagem();
+    }
+
+    function traduzirErro(mensagem) {
+      const esperado = mensagem.match(/^expected '([^']+)'/);
+      if (esperado) return {
+        explicacao: `O compilador esperava ${esperado[1]} neste trecho.`,
+        dica: esperado[1] === ';'
+          ? 'Coloque ponto e vírgula no fim da instrução. Se a seta estiver na próxima linha, revise a linha anterior.'
+          : 'Confira se o símbolo está faltando neste trecho ou na linha anterior.'
+      };
+      const nome = mensagem.match(/(?:undeclared identifier|undeclared function) '([^']+)'/);
+      if (nome) return {
+        explicacao: `O compilador não reconheceu o nome ${nome[1]}.`,
+        dica: 'Confira se o nome foi escrito como na declaração e se foi declarado antes de ser usado.'
+      };
+      const mensagensComDicas = [
+        [/expected expression/, 'Falta um valor ou uma expressão aqui.', 'Procure um operador sem valor ou parênteses vazios.'],
+        [/missing terminating/, 'Um texto ou caractere ficou sem fechar.', 'Use a mesma aspa que abriu o trecho para fechá-lo.'],
+        [/redefinition/, 'Este nome já foi definido.', 'Confira as declarações anteriores e remova a repetição.'],
+        [/file not found/, 'O compilador não encontrou o cabeçalho.', 'Confira a grafia do arquivo na linha do #include.']
+      ];
+      for (const [padrao, explicacao, dica] of mensagensComDicas) {
+        if (padrao.test(mensagem)) return { explicacao, dica };
+      }
+      return {
+        explicacao: 'O compilador encontrou um problema perto deste ponto.',
+        dica: 'Revise esse trecho e confira o diagnóstico original para ver o que o Clang informou.'
+      };
+    }
+
+    function lerErros(texto, fonte) {
+      const totalLinhas = fonte.split('\n').length;
+      return [...texto.matchAll(/^missao\.c:(\d+):(\d+): (?:fatal )?error: (.+)$/gm)]
+        .map(([, linha, coluna, mensagem]) => ({
+          linha: Number(linha), coluna: Number(coluna), ...traduzirErro(mensagem)
+        }))
+        .filter(erro => erro.linha >= 1 && erro.linha <= totalLinhas && erro.coluna >= 1);
+    }
+
+    function mostrarDiagnostico(texto) {
+      diagnostico.textContent = texto;
+      detalhes.hidden = !texto;
+      detalhes.open = false;
+    }
+
+    function atualizarErros() {
+      dicasErros.replaceChildren();
+      dicasErros.hidden = !erros.length;
+      if (!dicasErros.hidden) {
+        const linhas = codigo.value.split('\n');
+        for (const { linha, coluna, explicacao, dica } of erros) {
+          const item = document.createElement('li');
+          const atalho = document.createElement('button');
+          atalho.type = 'button';
+          atalho.textContent = `Linha ${linha}, coluna ${coluna} · ${explicacao}`;
+          atalho.addEventListener('click', () => {
+            const inicio = linhas.slice(0, linha - 1).join('\n').length + (linha > 1 ? 1 : 0);
+            const posicao = inicio + posicaoNaLinha(linhas[linha - 1], coluna);
+            codigo.focus();
+            codigo.setSelectionRange(posicao, Math.min(posicao + 1, inicio + linhas[linha - 1].length));
+            const altura = parseFloat(getComputedStyle(codigo).lineHeight);
+            codigo.scrollTop = Math.max(0, (linha - 3) * altura);
+          });
+          const sugestao = document.createElement('p');
+          sugestao.textContent = 'Dica — ' + dica;
+          item.append(atalho, sugestao);
+          dicasErros.append(item);
+        }
+      }
+      colorir();
+    }
+
+    const local = ['127.0.0.1', 'localhost'].includes(location.hostname) && location.port === '8765';
+
+    function enviarCodigo(fonte, apenasVerificar = false, valor = entrada.value) {
+      return fetch(local ? '/executar' : '/api/executar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          codigo: fonte, entrada: apenasVerificar ? '' : valor + '\n',
+          apenas_verificar: apenasVerificar
+        })
+      });
+    }
+
+    async function verificarLinha() {
+      const fonte = codigo.value;
+      if (botao.disabled || fonte === codigoVerificado) return;
+      const tentativa = ++verificacao;
+      try {
+        const resposta = await enviarCodigo(fonte, true);
+        if (!resposta.ok) throw new Error();
+        const resultado = await resposta.json();
+        if (tentativa !== verificacao || fonte !== codigo.value) return;
+        if (!['ok', 'erro_compilacao'].includes(resultado.estado)) throw new Error();
+        codigoVerificado = fonte;
+        erros = lerErros(resultado.diagnostico, fonte);
+        mostrarDiagnostico(resultado.diagnostico);
+        atualizarErros();
+        estado.textContent = resultado.estado === 'erro_compilacao'
+          ? erros[0]?.explicacao ?? mensagens.erro_compilacao
+          : 'Verificação concluída sem erros de sintaxe.';
+      } catch {
+        if (tentativa === verificacao && fonte === codigo.value) {
+          estado.textContent = 'A verificação automática falhou. Tente executar o código.';
+        }
+      }
+    }
+
+    function linhaDoCursor() {
+      return codigo.value.slice(0, codigo.selectionStart).split('\n').length;
+    }
+
+    function verificarAoMudarDeLinha() {
+      const linha = linhaDoCursor();
+      if (linha === ultimaLinha) return;
+      ultimaLinha = linha;
+      clearTimeout(esperaVerificacao);
+      verificarLinha();
+    }
+
+    codigo.addEventListener('scroll', sincronizarRolagem);
+    codigo.addEventListener('focus', () => { ultimaLinha = linhaDoCursor(); });
+    codigo.addEventListener('keyup', verificarAoMudarDeLinha);
+    codigo.addEventListener('click', verificarAoMudarDeLinha);
+    codigo.addEventListener('input', () => {
+      codigoVerificado = undefined;
+      verificacao += 1;
+      if (erros.length) {
+        erros = [];
+        atualizarErros();
+      } else {
+        colorir();
+      }
+      clearTimeout(esperaVerificacao);
+      esperaVerificacao = setTimeout(verificarLinha, 450);
+      verificarAoMudarDeLinha();
+    });
+
+    const licoes = missoes.flatMap((missao, indice) =>
+      (missao.etapas ?? []).map((etapa, numero) => ({ ...etapa, missao: indice, numero }))
+    );
+    const mapa = document.querySelector('#mapa');
+    const previsao = document.querySelector('#previsao');
+    const exemplos = document.querySelector('#exemplos');
+    const modalRetorno = document.querySelector('#retorno');
+
+    let etapaAvanco;
+    modalRetorno.addEventListener('close', () => {
+      const destino = etapaAvanco;
+      etapaAvanco = undefined;
+      if (destino === indiceLicao + 1) carregarLicao(destino, true);
+    });
+
+    function mostrarRetorno(tom, titulo, texto) {
+      modalRetorno.dataset.tom = tom;
+      modalRetorno.querySelector('button').textContent = etapaAvanco == null ? 'Voltar ao editor' : 'Continuar';
+      document.querySelector('#retorno-titulo').textContent = titulo;
+      document.querySelector('#retorno-texto').textContent = texto;
+      modalRetorno.showModal();
+    }
+    const armazenamento = 'codlearn-trilha-notas-v1';
+    let salvo = {};
+    try {
+      salvo = JSON.parse(localStorage.getItem(armazenamento) ?? '{}') ?? {};
+    } catch {
+      // A trilha também funciona quando o navegador bloqueia armazenamento.
+    }
+    let liberada = Number.isInteger(salvo.liberada)
+      ? Math.max(0, Math.min(licoes.length, salvo.liberada)) : 0;
+    let indiceLicao = 0;
+    const rascunhos = Array.isArray(salvo.rascunhos) ? salvo.rascunhos : [];
+    const dicasAbertas = Array.isArray(salvo.dicasAbertas) ? salvo.dicasAbertas : [];
+    const ganhos = Array.isArray(salvo.ganhos) ? salvo.ganhos : [];
+    let jogador = salvo.jogador;
+    const identificacao = document.querySelector('#identificacao');
+    const ranking = document.querySelector('#ranking');
+    const pedirDica = document.querySelector('#pedir-dica');
+    const perguntaDica = document.querySelector('#pergunta-dica');
+    const confirmarDica = document.querySelector('#confirmar-dica');
+    const reverDicas = document.querySelector('#rever-dicas');
+    const modalDica = document.querySelector('#modal-dica');
+    document.querySelector('#fechar-dica').addEventListener('click', () => modalDica.close());
+    const desafio = document.querySelector('#desafio');
+    const palpites = Array.isArray(salvo.palpites) ? salvo.palpites : [];
+    const total = () => ganhos.reduce((soma, pontos) => soma + (pontos || 0), 0);
+
+    function atualizarPontos() {
+      document.querySelector('#pontuacao').textContent = total() + ' XP';
+      document.querySelector('#jogador-atual').textContent = jogador?.nome ?? '';
+    }
+
+    function atualizarDicas() {
+      const abertas = dicasAbertas[indiceLicao] ?? 0;
+      const disponiveis = licoes[indiceLicao].dicas.length;
+      const podePedir = ganhos[indiceLicao] == null && abertas < disponiveis;
+      confirmarDica.hidden = !podePedir;
+      reverDicas.hidden = abertas === 0;
+      document.querySelector('#preco-dica').textContent = podePedir
+        ? `Dica ${abertas + 1} de ${disponiveis}. Custa 10 XP da recompensa desta etapa.`
+        : abertas ? 'Você pode rever as dicas já liberadas sem gastar XP.' : 'Esta etapa já foi concluída.';
+    }
+
+    function abrirDicas(soUltima) {
+      perguntaDica.hidePopover();
+      const conteudo = document.querySelector('#conteudo-dicas');
+      const status = document.querySelector('#copia-status');
+      conteudo.replaceChildren();
+      status.textContent = '';
+      const abertas = dicasAbertas[indiceLicao];
+      const licao = licoes[indiceLicao];
+      for (let indice = soUltima ? abertas - 1 : 0; indice < abertas; indice++) {
+        const artigo = document.createElement('article');
+        const explicacao = document.createElement('p');
+        explicacao.textContent = licao.dicas[indice];
+        artigo.append(explicacao);
+        const exemplo = licao.exemplosDica[indice];
+        const trecho = document.createElement('pre');
+        trecho.textContent = exemplo;
+        const copiar = document.createElement('button');
+        copiar.type = 'button';
+        copiar.textContent = 'Copiar exemplo';
+        copiar.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(exemplo);
+            status.textContent = 'Exemplo copiado. Cole no editor e adapte ao enunciado.';
+          } catch {
+            status.textContent = 'Selecione o trecho para copiar manualmente.';
+          }
+        });
+        artigo.append(trecho, copiar);
+        conteudo.append(artigo);
+      }
+      modalDica.showModal();
+    }
+
+    confirmarDica.addEventListener('click', () => {
+      dicasAbertas[indiceLicao] = (dicasAbertas[indiceLicao] ?? 0) + 1;
+      atualizarDicas();
+      salvar();
+      abrirDicas(true);
+    });
+    reverDicas.addEventListener('click', () => abrirDicas(false));
+
+    const modalQuestao = document.querySelector('#questao');
+    document.querySelector('#ler-questao').addEventListener('click', () => {
+      const licao = licoes[indiceLicao];
+      document.querySelector('#titulo-questao').textContent = licao.titulo;
+      document.querySelector('#tarefa').textContent = licao.tarefa;
+      document.querySelector('#conceito').textContent = licao.conceito;
+      const referencia = document.querySelector('#referencia-c');
+      referencia.replaceChildren();
+      for (const [simbolo, significado] of licao.referencia) {
+        const linha = document.createElement('div');
+        const termo = document.createElement('dt');
+        const codigoSimbolo = document.createElement('code');
+        codigoSimbolo.textContent = simbolo;
+        termo.append(codigoSimbolo);
+        const descricao = document.createElement('dd');
+        descricao.textContent = significado;
+        linha.append(termo, descricao);
+        referencia.append(linha);
+      }
+      modalQuestao.showModal();
+    });
+
+    function abrirDesafio() {
+      const licao = licoes[indiceLicao];
+      if (!licao.pergunta || indiceLicao < liberada || palpites[indiceLicao] != null) return;
+      document.querySelector('#enunciado-desafio').textContent = licao.tarefa;
+      desafio.showModal();
+    }
+
+    document.querySelector('#form-desafio').addEventListener('submit', () => {
+      palpites[indiceLicao] = previsao.value;
+      salvar();
+    });
+    function pularPrevisao() {
+      palpites[indiceLicao] = 'pulou';
+      salvar();
+      desafio.close();
+    }
+    document.querySelector('#pular-previsao').addEventListener('click', pularPrevisao);
+    desafio.addEventListener('cancel', evento => {
+      evento.preventDefault();
+      pularPrevisao();
+    });
+
+    const campoNome = document.querySelector('#nome-jogador');
+    campoNome.addEventListener('input', () => campoNome.setCustomValidity(''));
+    document.querySelector('#perfil').addEventListener('submit', evento => {
+      const campo = campoNome;
+      const nome = campo.value.trim().replace(/\s+/g, ' ');
+      if (!nome) {
+        evento.preventDefault();
+        campo.value = '';
+        campo.reportValidity();
+        return;
+      }
+      if (salvo.ultimoNome && nome.toLocaleLowerCase('pt-BR') === salvo.ultimoNome.toLocaleLowerCase('pt-BR')) {
+        evento.preventDefault();
+        campo.setCustomValidity('Digite outro nome para começar uma nova partida.');
+        campo.reportValidity();
+        return;
+      }
+      jogador = { id: crypto.randomUUID(), nome };
+      atualizarPontos();
+      salvar();
+    });
+    identificacao.addEventListener('close', abrirDesafio);
+    identificacao.addEventListener('cancel', evento => evento.preventDefault());
+
+    let consultaRanking = 0;
+    const medalhas = ['🥇', '🥈', '🥉'];
+
+    function atualizarMedalha(linhas) {
+      const lugar = linhas.findIndex(linha => linha.meu === true);
+      const medalha = document.querySelector('#medalha-jogador');
+      medalha.hidden = lugar < 0 || lugar >= medalhas.length;
+      medalha.textContent = medalhas[lugar] ?? '';
+      medalha.setAttribute('aria-label', medalha.hidden ? '' : `${lugar + 1}º lugar no ranking`);
+    }
+
+    async function listarRanking() {
+      const consulta = ++consultaRanking;
+      const lista = document.querySelector('#lista-ranking');
+      const status = document.querySelector('#status-ranking');
+      status.textContent = 'Carregando ranking…';
+      let linhas;
+      try {
+        const resposta = await fetch('/api/ranking', total() && jogador ? {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...jogador, pontos: total() })
+        } : { cache: 'no-store' });
+        if (!resposta.ok) throw new Error();
+        linhas = await resposta.json();
+        if (consulta !== consultaRanking) return;
+        status.textContent = linhas.length ? '' : 'Nenhum jogador pontuou ainda.';
+      } catch {
+        if (consulta !== consultaRanking) return;
+        status.textContent = 'Ranking indisponível. Seus XP continuam salvos neste navegador.';
+        return;
+      }
+      atualizarMedalha(linhas);
+      lista.replaceChildren();
+      for (const [indice, { nome, pontos }] of linhas.entries()) {
+        const item = document.createElement('li');
+        const posicao = document.createElement('span');
+        posicao.className = 'posicao';
+        posicao.textContent = medalhas[indice] ?? `${indice + 1}º`;
+        if (indice < 3) posicao.setAttribute('aria-label', `${indice + 1}º lugar`);
+        const jogadorLinha = document.createElement('span');
+        jogadorLinha.className = 'nome-ranking';
+        jogadorLinha.textContent = nome;
+        const pontosLinha = document.createElement('strong');
+        pontosLinha.textContent = `${pontos} XP`;
+        item.append(posicao, jogadorLinha, pontosLinha);
+        lista.append(item);
+      }
+    }
+
+    const botaoTema = document.querySelector('#tema');
+    let escuro = false;
+    try {
+      const temaSalvo = localStorage.getItem('codlearn-tema');
+      escuro = temaSalvo ? temaSalvo === 'escuro' : matchMedia('(prefers-color-scheme: dark)').matches;
+    } catch {
+      escuro = matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+
+    function atualizarTema() {
+      document.documentElement.dataset.tema = escuro ? 'escuro' : 'claro';
+      botaoTema.setAttribute('aria-pressed', String(escuro));
+      botaoTema.textContent = escuro ? 'Tema claro' : 'Tema escuro';
+    }
+
+    botaoTema.addEventListener('click', () => {
+      escuro = !escuro;
+      atualizarTema();
+      try {
+        localStorage.setItem('codlearn-tema', escuro ? 'escuro' : 'claro');
+      } catch {
+        // O tema continua ativo durante esta sessão.
+      }
+    });
+    atualizarTema();
+
+    document.querySelector('#abrir-ranking').addEventListener('click', () => {
+      ranking.showModal();
+      listarRanking();
+    });
+
+    document.querySelector('#sair').addEventListener('click', () => {
+      if (!jogador || !confirm('Sair da partida? O progresso e os rascunhos serão apagados deste navegador. A pontuação já registrada fica no ranking.')) return;
+      try {
+        localStorage.setItem(armazenamento, JSON.stringify({ ultimoNome: jogador.nome }));
+      } catch {
+        alert('Não foi possível encerrar a partida neste navegador.');
+        return;
+      }
+      location.reload();
+    });
+
+    function salvar() {
+      try {
+        localStorage.setItem(armazenamento, JSON.stringify({ liberada, indiceLicao, rascunhos, dicasAbertas, ganhos, jogador, palpites }));
+      } catch {
+        // Neste caso, os rascunhos ficam disponíveis durante a sessão.
+      }
+    }
+
+    function atualizarNavegacao() {
+      mapa.replaceChildren();
+      for (const [indice, missao] of missoes.entries()) {
+        const inicio = licoes.findIndex(licao => licao.missao === indice);
+        const fim = inicio + (missao.etapas?.length ?? 0);
+        const item = document.createElement('li');
+        const card = document.createElement(inicio >= 0 && inicio <= liberada ? 'button' : 'div');
+        card.className = 'missao-card';
+        const ativa = licoes[indiceLicao].missao === indice;
+        if (card instanceof HTMLButtonElement) {
+          if (ativa) card.setAttribute('aria-current', 'step');
+          card.addEventListener('click', () => {
+            if (!ativa) carregarLicao(liberada < fim ? liberada : inicio, true);
+          });
+        }
+        const nome = document.createElement('strong');
+        nome.className = 'nome-nivel';
+        nome.textContent = `${indice + 1}. ${missao.titulo}`;
+        if (inicio < 0 || inicio > liberada) {
+          const cadeado = document.createElement('span');
+          cadeado.className = 'cadeado';
+          cadeado.setAttribute('aria-hidden', 'true');
+          cadeado.textContent = '🔒';
+          nome.append(cadeado);
+        }
+        const status = document.createElement('small');
+        status.textContent = inicio < 0 || inicio > liberada ? 'Bloqueada'
+          : liberada >= fim ? 'Concluída' : ativa ? 'Em andamento' : 'Disponível';
+        if (ativa) card.classList.add('ativa');
+        if (inicio >= 0 && liberada >= fim) card.classList.add('concluida');
+        card.append(nome, status);
+        item.append(card);
+        mapa.append(item);
+      }
+      const completas = missoes.filter((missao, indice) => missao.etapas &&
+        licoes.findIndex(licao => licao.missao === indice) + missao.etapas.length <= liberada).length;
+      document.querySelector('#contagem').textContent = `${completas} de ${missoes.length} missões concluídas`;
+    }
+
+    function carregarLicao(indice, focar = false) {
+      clearTimeout(esperaVerificacao);
+      verificacao += 1;
+      codigoVerificado = undefined;
+      erros = [];
+      indiceLicao = indice;
+      const licao = licoes[indice];
+      const missao = missoes[licao.missao];
+      document.querySelector('#etapa').textContent = `Etapa ${licao.numero + 1} de ${missao.etapas.length}`;
+      const titulo = document.querySelector('#missao');
+      titulo.textContent = licao.titulo;
+      atualizarDicas();
+      codigo.value = typeof rascunhos[indice] === 'string' ? rascunhos[indice] : licao.codigo;
+      codigo.setSelectionRange(0, 0);
+      codigo.scrollTop = 0;
+      codigo.scrollLeft = 0;
+      ultimaLinha = 1;
+      codigo.disabled = false;
+      botao.disabled = false;
+      botao.title = licao.sintaxe ? 'Verificar código' : 'Executar';
+      botao.setAttribute('aria-label', botao.title);
+      previsao.replaceChildren(new Option('Escolha sua previsão', ''));
+      // Alterna a posição da resposta certa entre as etapas.
+      const opcoes = licao.opcoes ?? [];
+      for (let i = 0; i < opcoes.length; i++) {
+        const opcao = (i + indice) % opcoes.length;
+        previsao.add(new Option(opcoes[opcao], opcao));
+      }
+      document.querySelector('#pergunta').textContent = licao.pergunta ?? '';
+      entrada.value = '';
+      entrada.placeholder = licao.exemploEntrada ?? '';
+      painelEntrada.hidden = !licao.lembreteEntrada;
+      limparLembreteEntrada();
+      exemplos.replaceChildren();
+      for (const [valor, , , rotulo] of licao.testes ?? []) {
+        if (!valor) continue;
+        const exemplo = document.createElement('button');
+        exemplo.type = 'button';
+        exemplo.textContent = rotulo ?? 'Usar ' + valor;
+        exemplo.title = valor;
+        exemplo.addEventListener('click', () => {
+          entrada.value = valor;
+          limparLembreteEntrada();
+          entrada.focus();
+        });
+        exemplos.append(exemplo);
+      }
+      saida.textContent = 'Aguardando execução…';
+      mostrarDiagnostico('');
+      atualizarErros();
+      estado.textContent = 'Pronto para testar.';
+      atualizarAvanco();
+      atualizarNavegacao();
+      salvar();
+      if (focar) { titulo.focus(); abrirDesafio(); }
+    }
+
+    function atualizarAvanco() {
+      const licao = licoes[indiceLicao];
+      const seguinte = licoes[indiceLicao + 1];
+      proxima.hidden = indiceLicao >= liberada || !seguinte;
+      const rotulo = seguinte?.missao === licao.missao ? 'Próxima etapa' : 'Próxima missão';
+      proxima.setAttribute('aria-label', rotulo);
+      proxima.textContent = seguinte?.missao === licao.missao ? 'Próxima ›' : 'Próxima missão ›';
+      const anterior = document.querySelector('#anterior');
+      anterior.hidden = licao.numero === 0;
+    }
+
+    function normalizarMensagem(texto) {
+      return texto.trim().split(/\r?\n/).map(linha => linha
+        .normalize('NFD').replace(/\p{M}/gu, '')
+        .toLocaleLowerCase('pt-BR').replace(/\p{P}/gu, ' ')
+        .replace(/\s+/g, ' ').trim()
+      ).join('\n');
+    }
+
+    async function avaliarLicao(licao, fonte, entradaUsada, resultado) {
+      if (licao.verificar && !licao.verificar(fonte)) {
+        return { tom: 'saida', texto: 'A sintaxe passou. Inclua #include <stdio.h> para disponibilizar a biblioteca de entrada e saída.' };
+      }
+      for (const [valor, esperado, estadoEsperado = 'ok'] of licao.testes ?? []) {
+        let teste = resultado;
+        if (valor !== entradaUsada.trim().replace(/\s+/g, ' ')) {
+          const resposta = await enviarCodigo(fonte, false, valor);
+          if (!resposta.ok) throw new Error();
+          teste = await resposta.json();
+        }
+        const confere = licao.saidaTextual
+          ? normalizarMensagem(teste.saida) === normalizarMensagem(esperado)
+          : teste.saida.trim() === esperado;
+        if (teste.estado !== estadoEsperado || !confere) {
+          const caso = valor ? `Entrada: ${valor}\n` : '';
+          const obtida = teste.saida.trim() || 'Sem saída.';
+          const terminouComoEsperado = teste.estado === estadoEsperado;
+          const detalhe = terminouComoEsperado ? '' : `\n${mensagens[teste.estado]} ${estadoEsperado === 'ok' ? 'Este caso deve terminar normalmente.' : 'Este caso deve sinalizar que a entrada foi recusada.'}`;
+          return {
+            tom: terminouComoEsperado || teste.estado === 'ok' ? 'saida' : 'erro',
+            texto: `${caso}Resultado:\n${obtida}${detalhe}\n\nEsperado:\n${esperado || 'Terminar com sucesso, sem saída.'}`
+          };
+        }
+      }
+      return null;
+    }
+
+    proxima.addEventListener('click', () => carregarLicao(indiceLicao + 1, true));
+    document.querySelector('#anterior').addEventListener('click', () => carregarLicao(indiceLicao - 1, true));
+    codigo.addEventListener('input', () => {
+      rascunhos[indiceLicao] = codigo.value;
+      salvar();
+    });
+
+    form.addEventListener('submit', async (evento) => {
+      evento.preventDefault();
+      const licao = licoes[indiceLicao];
+      const entradaUsada = painelEntrada.hidden ? '' : entrada.value;
+      if (!painelEntrada.hidden && !entradaUsada.trim()) {
+        lembreteEntrada.textContent = licao.lembreteEntrada;
+        entrada.setAttribute('aria-invalid', 'true');
+        entrada.focus();
+        return;
+      }
+      clearTimeout(esperaVerificacao);
+      botao.disabled = true;
+      verificacao += 1;
+      codigoVerificado = undefined;
+      const codigoEnviado = codigo.value;
+      mapa.inert = true;
+      document.querySelector('#anterior').disabled = true;
+      const palpite = palpites[indiceLicao];
+      proxima.disabled = true;
+      erros = [];
+      atualizarErros();
+      estado.textContent = licao.sintaxe ? 'Verificando…' : 'Executando…';
+      saida.textContent = 'Processando…';
+      detalhes.hidden = true;
+      try {
+        const resposta = await enviarCodigo(codigoEnviado, Boolean(licao.sintaxe), entradaUsada);
+        if (!resposta.ok) {
+          saida.textContent = 'Sem saída disponível.';
+          estado.textContent = 'Executor indisponível.';
+          mostrarRetorno('erro', 'Executor indisponível', resposta.status === 503 ? 'Confira a configuração da publicação.' : 'Não foi possível verificar o código. Tente novamente.');
+          return;
+        }
+        const resultado = await resposta.json();
+        estado.textContent = resultado.estado === 'ok' && licao.sintaxe ? 'Sintaxe verificada.' : mensagens[resultado.estado];
+        if (resultado.estado === 'erro_compilacao') {
+          const encontrados = lerErros(resultado.diagnostico, codigoEnviado);
+          if (encontrados.length) estado.textContent = encontrados[0].explicacao;
+          if (codigo.value === codigoEnviado) {
+            erros = encontrados;
+            atualizarErros();
+          }
+        }
+        saida.textContent = resultado.saida || (resultado.estado === 'ok' ? 'Sem saída.' : 'Confira o erro no editor.');
+        mostrarDiagnostico(resultado.diagnostico);
+        const entradaDoTeste = entradaUsada.trim().replace(/\s+/g, ' ');
+        const rejeicaoEsperada = resultado.estado === 'erro_execucao' && licao.testes?.some(
+          ([valor, , esperado]) => valor === entradaDoTeste && esperado === resultado.estado
+        );
+        if (resultado.estado !== 'ok' && !rejeicaoEsperada) {
+          const erro = lerErros(resultado.diagnostico, codigoEnviado)[0];
+          mostrarRetorno('erro', resultado.estado === 'erro_compilacao' ? 'Erro de compilação' : 'Execução interrompida',
+            erro ? `Linha ${erro.linha}, coluna ${erro.coluna}. ${erro.explicacao}\n\nDica: ${erro.dica}`
+              : estado.textContent + ' Confira o terminal e o diagnóstico original.');
+          return;
+        }
+        const pendencia = await avaliarLicao(licoes[indiceLicao], codigoEnviado, entradaUsada, resultado);
+        if (codigo.value !== codigoEnviado) return;
+        if (pendencia) {
+          estado.textContent = 'Ainda falta passar um teste.';
+          mostrarRetorno(pendencia.tom, pendencia.tom === 'erro' ? 'Um teste encontrou um erro'
+            : licao.sintaxe ? 'Falta completar a tarefa' : 'A saída precisa de ajuste', pendencia.texto);
+          return;
+        }
+        const novosPontos = ganhos[indiceLicao] == null ? 100 - 10 * (dicasAbertas[indiceLicao] ?? 0) + (palpite === '0' ? 10 : 0) : 0;
+        if (novosPontos) ganhos[indiceLicao] = novosPontos;
+        atualizarPontos();
+        atualizarDicas();
+        liberada = Math.max(liberada, indiceLicao + 1);
+        const seguinte = licoes[indiceLicao + 1];
+        const conclusao = !seguinte ? 'Trilha concluída!'
+          : seguinte.missao !== licao.missao ? 'Missão concluída!' : 'Etapa concluída!';
+        const retorno = licao.pergunta ? (palpite === '0' ? ' Previsão correta.' : ' Resposta: ' + licao.opcoes[0] + '.') : '';
+        estado.textContent = conclusao;
+        etapaAvanco = seguinte ? indiceLicao + 1 : undefined;
+        mostrarRetorno('ok', conclusao, licao.explicacao + retorno + (novosPontos ? ' +' + novosPontos + ' XP.' : ''));
+        atualizarAvanco();
+        atualizarNavegacao();
+        salvar();
+        if (jogador && novosPontos) listarRanking();
+      } catch {
+        if (saida.textContent === 'Processando…') saida.textContent = 'Sem saída disponível.';
+        estado.textContent = 'Falha na conexão com o executor C.';
+        mostrarRetorno('erro', 'Falha na conexão', 'Não foi possível concluir o teste. Tente novamente.');
+      } finally {
+        botao.disabled = false;
+        mapa.inert = false;
+        document.querySelector('#anterior').disabled = false;
+        proxima.disabled = false;
+      }
+    });
+
+    const retomada = Number.isInteger(salvo.indiceLicao)
+      ? Math.max(0, Math.min(salvo.indiceLicao, liberada, licoes.length - 1)) : 0;
+    carregarLicao(retomada);
+    atualizarPontos();
+    if (jogador && total()) listarRanking();
+    if (!jogador) identificacao.showModal();
+    else abrirDesafio();
+  </script>
+</body>
+</html>
