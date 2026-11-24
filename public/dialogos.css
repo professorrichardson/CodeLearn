@@ -1,0 +1,36 @@
+#aviso-codlearn {
+  width: min(28rem, calc(100% - 2rem));
+  background: var(--superficie, var(--painel));
+  color: var(--texto);
+  border: 1px solid var(--borda);
+  border-radius: .85rem;
+  padding: 1.25rem;
+}
+
+#aviso-codlearn::backdrop {
+  background: #11182799;
+}
+
+#aviso-codlearn h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+#aviso-codlearn form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  justify-content: flex-end;
+}
+
+#aviso-codlearn button {
+  background: var(--fundo);
+  color: var(--texto);
+  border: 1px solid var(--borda);
+}
+
+#aviso-codlearn .acao-destrutiva {
+  background: #b42318;
+  border-color: #b42318;
+  color: #fff;
+}

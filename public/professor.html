@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CodLearn · Painel do professor</title>
+  <link rel="stylesheet" href="/dialogos.css">
   <style>
     :root { color-scheme: dark; --fundo: #181818; --painel: #242424; --borda: #48403a; --texto: #f5f0eb; --suave: #cbbfb4; --laranja: #ef8d22; }
     * { box-sizing: border-box; }
@@ -48,12 +49,12 @@
         </div>
       </div>
     </header>
-    <form id="acesso" hidden>
+    <form id="acesso" novalidate hidden>
       <h2 id="titulo-acesso"></h2>
       <p id="orientacao"></p>
       <label for="senha">Senha</label>
       <div class="senha">
-        <input id="senha" type="password" required maxlength="128">
+        <input id="senha" type="password" required maxlength="128" aria-describedby="mensagem">
         <button type="button" id="ver-senha" aria-label="Mostrar senha" aria-pressed="false">👁</button>
       </div>
       <p id="mensagem" role="alert"></p>
@@ -71,6 +72,7 @@
       <button type="button" id="repetir" hidden>Tentar novamente</button>
     </div>
   </main>
+  <script src="/dialogos.js"></script>
   <script>
     const acesso = document.querySelector('#acesso');
     const senha = document.querySelector('#senha');
@@ -116,7 +118,6 @@
       acesso.hidden = false;
       document.querySelector('#titulo-acesso').textContent = cadastrar ? 'Cadastre sua senha' : 'Acesso do professor';
       document.querySelector('#orientacao').textContent = cadastrar ? 'Primeiro acesso. Crie uma senha com pelo menos 8 caracteres.' : 'Digite a senha cadastrada para abrir o ranking.';
-      senha.minLength = cadastrar ? 8 : 1;
       senha.autocomplete = cadastrar ? 'new-password' : 'current-password';
       enviar.textContent = cadastrar ? 'Cadastrar e abrir painel' : 'Entrar';
     }
@@ -179,8 +180,19 @@
       }
     }
 
+    senha.addEventListener('input', () => {
+      mensagem.textContent = '';
+      senha.removeAttribute('aria-invalid');
+    });
+
     acesso.addEventListener('submit', async evento => {
       evento.preventDefault();
+      if (!senha.value || (cadastrar && [...senha.value].length < 8)) {
+        mensagem.textContent = cadastrar ? 'A senha precisa ter pelo menos 8 caracteres.' : 'Digite a senha para entrar.';
+        senha.setAttribute('aria-invalid', 'true');
+        senha.focus();
+        return;
+      }
       ocupado = true;
       consulta++;
       enviar.disabled = true;
@@ -222,8 +234,12 @@
       else atualizar();
     }
 
-    resetar.addEventListener('click', () => {
-      if (confirm('Zerar o ranking? Os XP já exibidos sairão do placar. A próxima pontuação começará a contar a partir de agora.')) alterar('resetar');
+    resetar.addEventListener('click', async () => {
+      if (await abrirAviso({
+        titulo: 'Zerar o ranking?',
+        texto: 'Os XP já registrados saem do placar. Apenas os novos XP passam a contar.',
+        confirmar: 'Zerar ranking'
+      })) alterar('resetar');
     });
     sair.addEventListener('click', () => alterar('sair'));
     repetir.addEventListener('click', atualizar);

@@ -51,8 +51,10 @@ class Piloto(BaseHTTPRequestHandler):
             self.send_error(403)
         elif caminho == "/":
             self.responder((PUBLICO / "index.html").read_bytes(), "text/html")
-        elif caminho == "/licoes.js":
-            self.responder((PUBLICO / "licoes.js").read_bytes(), "text/javascript")
+        elif caminho in {"/licoes.js", "/dialogos.js"}:
+            self.responder((PUBLICO / caminho.lstrip("/")).read_bytes(), "text/javascript")
+        elif caminho == "/dialogos.css":
+            self.responder((PUBLICO / "dialogos.css").read_bytes(), "text/css")
         elif caminho in {"/compilador/executor.js", "/compilador/worker.mjs", "/compilador/wasi-host.mjs"}:
             self.responder((PUBLICO / caminho.lstrip("/")).read_bytes(), "text/javascript")
         elif caminho == "/codrich.png":
